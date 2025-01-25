@@ -1,9 +1,9 @@
 from flask import Flask, jsonify, request, redirect
 import requests
 
-from ResponseBody import Code, ResponseBody, Status
+from api.ResponseBody import Code, ResponseBody, Status
 from models.LarksuiteTask import parse_tasks_from_json
-from mongodb_connection import MongoDBConnection
+from MongoDBConnection import MongoDBConnection
 from dotenv import load_dotenv
 import os
 from bson import ObjectId
@@ -38,27 +38,27 @@ def oauth_callback():
     code = request.args.get('code')
     if not code:
         response = ResponseBody(
-            result=None,
-            status=Status.FAILED,
-            message="Authorization code is missing",
-            code=Code.CLIENT_ERROR
+            result = None,
+            status = Status.FAILED,
+            message = "Authorization code is missing",
+            code = Code.CLIENT_ERROR
         )
         return jsonify(response.to_dict())
 
     try:
         response = requests.post(
             LARKSUITE_OAUTH_TOKEN_URL,
-            headers={"Content-Type": "application/json"},
-            json={"app_id": LARKSUITE_APP_ID, "app_secret": LARKSUITE_APP_SECRET, "grant_type": "authorization_code", "code": code},
+            headers = {"Content-Type": "application/json"},
+            json = {"app_id": LARKSUITE_APP_ID, "app_secret": LARKSUITE_APP_SECRET, "grant_type": "authorization_code", "code": code},
         )
         response.raise_for_status()
         return jsonify(response.json())
     except requests.RequestException as e:
         response = ResponseBody(
-            result=None,
-            status=Status.FAILED,
-            message=str(e),
-            code=Code.INTERNAL_ERROR
+            result = None,
+            status = Status.FAILED,
+            message = str(e),
+            code = Code.INTERNAL_ERROR
         )
         return jsonify(response.to_dict())
     
@@ -69,10 +69,10 @@ def list_tasklists():
     access_token = request.headers.get("Authorization", "").replace("Bearer ", "")
     if not access_token:
         response = ResponseBody(
-            result=None,
-            status=Status.FAILED,
-            message="User access token is required",
-            code=Code.UNAUTHORIZED_REQUEST
+            result = None,
+            status = Status.FAILED,
+            message = "User access token is required",
+            code = Code.UNAUTHORIZED_REQUEST
         )
         return jsonify(response.to_dict())
 
@@ -82,20 +82,20 @@ def list_tasklists():
     try:
         response = requests.get(
             LARKSUITE_TASKLIST_URL,
-            headers={
+            headers = {
                 "Authorization": f"Bearer {access_token}",
                 "Content-Type": "application/json; charset=utf-8"
             },
-            params=params
+            params = params
         )
         response.raise_for_status()
         return jsonify(response.json())
     except requests.RequestException as e:
         response = ResponseBody(
-            result=None,
-            status=Status.FAILED,
-            message=str(e),
-            code=Code.INTERNAL_ERROR
+            result = None,
+            status = Status.FAILED,
+            message = str(e),
+            code = Code.INTERNAL_ERROR
         )
         return jsonify(response.to_dict())
 
@@ -107,10 +107,10 @@ def get_tasks():
         tasklist_guid = request.args.get('tasklist_guid')
         if not tasklist_guid:
             response = ResponseBody(
-                result=None,
-                status=Status.FAILED,
-                message="tasklist_guid is required",
-                code=Code.CLIENT_ERROR
+                result = None,
+                status = Status.FAILED,
+                message = "tasklist_guid is required",
+                code = Code.CLIENT_ERROR
             )
             return jsonify(response.to_dict())
 
@@ -128,20 +128,20 @@ def get_tasks():
         access_token = request.headers.get("Authorization", "").replace("Bearer ", "")
         if not access_token:
             response = ResponseBody(
-                result=None,
-                status=Status.FAILED,
-                message="User access token is required",
-                code=Code.UNAUTHORIZED_REQUEST
+                result = None,
+                status = Status.FAILED,
+                message = "User access token is required",
+                code = Code.UNAUTHORIZED_REQUEST
             )
             return jsonify(response.to_dict())
 
         response = requests.get(
             f"{LARKSUITE_TASKLIST_URL}/{tasklist_guid}/tasks",
-            headers={
+            headers = {
                 "Authorization": f"Bearer {access_token}",
                 "Content-Type": "application/json; charset=utf-8"
             },
-            params=params,
+            params = params,
         )
         response.raise_for_status()
         data = response.json()
@@ -156,18 +156,18 @@ def get_tasks():
             task_collection.insert_many(tasks)
 
         response = ResponseBody(
-            result=None,
-            status=Status.SUCCESS,
-            code=Code.SUCCESS
+            result = None,
+            status = Status.SUCCESS,
+            code = Code.SUCCESS
         )
         return jsonify(response.to_dict())
 
     except requests.RequestException as e:
         response = ResponseBody(
-            result=None,
-            status=Status.FAILED,
-            message=str(e),
-            code=Code.INTERNAL_ERROR
+            result = None,
+            status = Status.FAILED,
+            message = str(e),
+            code = Code.INTERNAL_ERROR
         )
         return jsonify(response.to_dict())
     
@@ -181,20 +181,20 @@ def get_tasks_from_db():
         tasks = [objectid_to_str(task) for task in tasks]
         
         response = ResponseBody(
-            result=tasks,
-            status=Status.SUCCESS,
-            code=Code.SUCCESS
+            result = tasks,
+            status = Status.SUCCESS,
+            code = Code.SUCCESS
         )
         return jsonify(response.to_dict())
 
     except Exception as e:
         response = ResponseBody(
-            result=None,
-            status=Status.FAILED,
-            message=str(e),
-            code=Code.INTERNAL_ERROR
+            result = None,
+            status = Status.FAILED,
+            message = str(e),
+            code = Code.INTERNAL_ERROR
         )
         return jsonify(response.to_dict())
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug = True)

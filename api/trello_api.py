@@ -2,9 +2,9 @@ from flask import Flask, jsonify
 import requests
 from dotenv import load_dotenv
 import os
-from mongodb_connection import MongoDBConnection
+from MongoDBConnection import MongoDBConnection
 from bson import ObjectId
-from ResponseBody import ResponseBody, Status, Code 
+from api.ResponseBody import ResponseBody, Status, Code 
 
 load_dotenv()
 
@@ -78,19 +78,19 @@ def fetch_trello_cards():
             result.append(task_data)
         
         response_body = ResponseBody(
-            code= Code.SUCCESS,
-            result=None,
-            status=Status.SUCCESS,
-            message="Tasks fetched and saved to MongoDB"
+            code = Code.SUCCESS,
+            result = None,
+            status = Status.SUCCESS,
+            message = "Tasks fetched and saved to MongoDB"
         )
         
         return jsonify(response_body.__dict__)
 
     except requests.exceptions.RequestException as e:
         response_body = ResponseBody(
-            result=None,
-            status=Status.FAILED,
-            message=str(e)
+            result = None,
+            status = Status.FAILED,
+            message = str(e)
         )
         return jsonify(response_body.__dict__)
 
@@ -105,20 +105,20 @@ def fetch_trello_cards_from_db():
         
         response_body = ResponseBody(
             code = Code.SUCCESS,
-            result=data,
-            status=Status.SUCCESS,
-            message="Tasks fetched successfully from MongoDB"
+            result = data,
+            status = Status.SUCCESS,
+            message = "Tasks fetched successfully from MongoDB"
         )
 
         return jsonify(response_body.__dict__)
 
     except Exception as e:
         response_body = ResponseBody(
-            result=None,
-            status=Status.FAILED,
-            message=str(e)
+            result = None,
+            status = Status.FAILED,
+            message = str(e)
         )
         return jsonify(response_body.__dict__)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug = True)

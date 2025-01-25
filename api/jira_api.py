@@ -24,7 +24,7 @@ app = Flask(__name__)
 JIRA_DOMAIN = os.getenv("JIRA_DOMAIN")
 JIRA_API_TOKEN = os.getenv("JIRA_API_TOKEN")
 JIRA_EMAIL = os.getenv("JIRA_EMAIL")
-@app.route('/jira/task', methods=['GET'])
+@app.route('/jira/task')
 def get_jira_tasks():
     try:
         jql = request.args.get("jql")
@@ -37,9 +37,9 @@ def get_jira_tasks():
 
         response = requests.get(
             url,
-            params=query,
-            auth=HTTPBasicAuth(JIRA_EMAIL, JIRA_API_TOKEN),
-            headers={"Accept": "application/json"}
+            params = query,
+            auth = HTTPBasicAuth(JIRA_EMAIL, JIRA_API_TOKEN),
+            headers = {"Accept": "application/json"}
         )
 
 
@@ -68,16 +68,16 @@ def get_jira_tasks():
                     assignees.append(assignee_field.get("displayName"))
 
                 task = JiraTask(
-                    id=task_id,
-                    summary=task_summary,
-                    description=task_description,
-                    status=task_status,
-                    priority=task_priority,
-                    assignees=assignees,
-                    created=task_created,
-                    updated=task_updated,
-                    due_date=task_due_date,
-                    labels=task_labels,
+                    id = task_id,
+                    summary = task_summary,
+                    description = task_description,
+                    status = task_status,
+                    priority = task_priority,
+                    assignees = assignees,
+                    created = task_created,
+                    updated = task_updated,
+                    due_date = task_due_date,
+                    labels = task_labels,
                 )
                 tasks.append(task)
                 jira_tasks_collection.insert_one(task.to_dict())
@@ -119,21 +119,21 @@ def get_jira_tasks_from_db():
 
         response_body = ResponseBody(
             code = Code.SUCCESS,
-            result=tasks,
-            status=Status.SUCCESS,
-            message="Tasks fetched successfully from MongoDB"
+            result = tasks,
+            status = Status.SUCCESS,
+            message = "Tasks fetched successfully from MongoDB"
         )
 
         return jsonify(response_body.to_dict())
 
     except Exception as e:
         response_body = ResponseBody(
-            result=None,
-            status=Status.FAILED,
-            message=str(e)
+            result = None,
+            status = Status.FAILED,
+            message = str(e)
         )
         return jsonify(response_body.to_dict())
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug = True)

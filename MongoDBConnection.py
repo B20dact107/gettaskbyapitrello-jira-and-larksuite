@@ -2,7 +2,7 @@
 from pymongo import MongoClient
 
 class MongoDBConnection:
-    def __init__(self, uri="mongodb://localhost:27017/", db_name="task_database"):
+    def __init__(self, uri = "mongodb://localhost:27017/", db_name = "task_database"):
         self.client = MongoClient(uri)
         self.db = self.client[db_name]
     
