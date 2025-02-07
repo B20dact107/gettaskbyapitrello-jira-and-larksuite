@@ -1,12 +1,14 @@
 from flask import Flask, jsonify, request, redirect
 import requests
 
-from api.ResponseBody import Code, ResponseBody, Status
-from models.LarksuiteTask import parse_tasks_from_json
+from api.response_body import Code, response_body, Status
+from models.LarksuiteTask import LarksuiteTask
 from MongoDBConnection import MongoDBConnection
 from dotenv import load_dotenv
 import os
 from bson import ObjectId
+
+from models.Task import Task
 
 load_dotenv()
 
@@ -37,7 +39,7 @@ def oauth_callback():
     """Đổi Authorization Code thành User Access Token."""
     code = request.args.get('code')
     if not code:
-        response = ResponseBody(
+        response = response_body(
             result = None,
             status = Status.FAILED,
             message = "Authorization code is missing",
@@ -54,7 +56,7 @@ def oauth_callback():
         response.raise_for_status()
         return jsonify(response.json())
     except requests.RequestException as e:
-        response = ResponseBody(
+        response = response_body(
             result = None,
             status = Status.FAILED,
             message = str(e),
@@ -68,7 +70,7 @@ def list_tasklists():
     """Liệt kê tất cả các tasklists mà người dùng có quyền đọc."""
     access_token = request.headers.get("Authorization", "").replace("Bearer ", "")
     if not access_token:
-        response = ResponseBody(
+        response = response_body(
             result = None,
             status = Status.FAILED,
             message = "User access token is required",
@@ -91,7 +93,7 @@ def list_tasklists():
         response.raise_for_status()
         return jsonify(response.json())
     except requests.RequestException as e:
-        response = ResponseBody(
+        response = response_body(
             result = None,
             status = Status.FAILED,
             message = str(e),
@@ -106,7 +108,7 @@ def get_tasks():
     try:
         tasklist_guid = request.args.get('tasklist_guid')
         if not tasklist_guid:
-            response = ResponseBody(
+            response = response_body(
                 result = None,
                 status = Status.FAILED,
                 message = "tasklist_guid is required",
@@ -127,7 +129,7 @@ def get_tasks():
         # Lấy `access_token` từ header
         access_token = request.headers.get("Authorization", "").replace("Bearer ", "")
         if not access_token:
-            response = ResponseBody(
+            response = response_body(
                 result = None,
                 status = Status.FAILED,
                 message = "User access token is required",
@@ -147,15 +149,38 @@ def get_tasks():
         data = response.json()
         mongo_connection = MongoDBConnection()
         task_collection = mongo_connection.get_collection("larksuite_tasks")
-        # Lưu các task vào MongoDB
-        tasks = []
-        if "data" in data and "items" in data["data"]:
-            tasks = data["data"]["items"]
-            for task in tasks:
-                task["tasklist_guid"] = tasklist_guid
-            task_collection.insert_many(tasks)
+        unified_collection = mongo_connection.get_collection("unified_tasks")
 
-        response = ResponseBody(
+        # Lưu các task vào MongoDB
+        unified_tasks = []
+        if "data" in data and "items" in data["data"]:
+            for raw_task in data["data"]["items"]:
+                # Tạo LarksuiteTask từ dữ liệu API
+                larksuite_task = LarksuiteTask(
+                    task_id=raw_task.get("guid"),
+                    summary=raw_task.get("summary"),
+                    completed_at=raw_task.get("completed_at"),
+                    due=raw_task.get("due"),
+                    members=[member.get("name") for member in raw_task.get("members", [])],
+                    subtask_count=raw_task.get("subtask_count", 0),
+                    extra_data=raw_task  # Lưu toàn bộ dữ liệu gốc
+                )
+                
+                # Lưu vào collection larksuite_tasks
+                task_collection.insert_one(larksuite_task.to_dict())
+                
+                # Chuyển đổi sang Task unified
+                unified_task = Task.from_larksuite(larksuite_task)
+                unified_collection.insert_one(unified_task.to_dict())
+                unified_tasks.append(unified_task.to_dict())
+        # tasks = []
+        # if "data" in data and "items" in data["data"]:
+        #     tasks = data["data"]["items"]
+        #     for task in tasks:
+        #         task["tasklist_guid"] = tasklist_guid
+        #     task_collection.insert_many(tasks)
+
+        response = response_body(
             result = None,
             status = Status.SUCCESS,
             code = Code.SUCCESS
@@ -163,7 +188,7 @@ def get_tasks():
         return jsonify(response.to_dict())
 
     except requests.RequestException as e:
-        response = ResponseBody(
+        response = response_body(
             result = None,
             status = Status.FAILED,
             message = str(e),
@@ -180,7 +205,7 @@ def get_tasks_from_db():
         tasks = list(task_collection.find())  # Lấy tất cả tasks từ MongoDB
         tasks = [objectid_to_str(task) for task in tasks]
         
-        response = ResponseBody(
+        response = response_body(
             result = tasks,
             status = Status.SUCCESS,
             code = Code.SUCCESS
@@ -188,7 +213,7 @@ def get_tasks_from_db():
         return jsonify(response.to_dict())
 
     except Exception as e:
-        response = ResponseBody(
+        response = response_body(
             result = None,
             status = Status.FAILED,
             message = str(e),

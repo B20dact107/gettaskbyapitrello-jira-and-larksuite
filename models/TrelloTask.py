@@ -14,6 +14,7 @@ class TrelloTask:
         updated_at: Optional[str],
         due_date: Optional[str],
         labels: Optional[List[str]] = None,
+        metadata: Optional[dict] = None,
     ):
         self.id = id
         self.name = name
@@ -24,8 +25,8 @@ class TrelloTask:
         self.updated_at = updated_at
         self.due_date = due_date
         self.labels = labels or []
+        self.metadata = metadata or {}
 
     def __repr__(self):
         return f"<TrelloTask id={self.id} name={self.name}>"
 
-# Class đại diện cho task từ Jira

@@ -3,10 +3,13 @@ from flask import Flask, jsonify, request
 import requests
 from requests.auth import HTTPBasicAuth
 import os 
-from api.ResponseBody import Code, ResponseBody, Status
 from models.JiraTask import JiraTask
+from api.response_body import Code, response_body, Status
+
 from MongoDBConnection import MongoDBConnection
 from bson import ObjectId
+
+from models.Task import Task
 
 def objectid_to_str(obj):
     if isinstance(obj, ObjectId):
@@ -29,7 +32,7 @@ def get_jira_tasks():
     try:
         jql = request.args.get("jql")
         if not jql:
-            return jsonify(ResponseBody(None, Status.FAILED, "Parameter 'jql' is required", Code.INVALID_REQUEST_FORMAT).to_dict()), 400
+            return jsonify(response_body(None, Status.FAILED, "Parameter 'jql' is required", Code.INVALID_REQUEST_FORMAT).to_dict()), 400
             #return jsonify({"error": "Parameter 'jql' is required"}), 400
 
         url = f"https://{JIRA_DOMAIN}/rest/api/3/search"
@@ -48,6 +51,7 @@ def get_jira_tasks():
             tasks = []
             mongo_conn = MongoDBConnection()
             jira_tasks_collection = mongo_conn.get_collection("jira_tasks")
+            common_tasks_collection = mongo_conn.get_collection("unified_tasks")
 
 
             for issue in issues:
@@ -67,7 +71,7 @@ def get_jira_tasks():
                 if assignee_field:
                     assignees.append(assignee_field.get("displayName"))
 
-                task = JiraTask(
+                jira_task = JiraTask(
                     id = task_id,
                     summary = task_summary,
                     description = task_description,
@@ -79,16 +83,19 @@ def get_jira_tasks():
                     due_date = task_due_date,
                     labels = task_labels,
                 )
-                tasks.append(task)
-                jira_tasks_collection.insert_one(task.to_dict())
+                tasks.append(jira_task)
+                common_task = Task.from_jira(jira_task)  # Chuyển đổi sang Task chung
+                tasks.append(common_task)
+                jira_tasks_collection.insert_one(jira_task.to_dict())
+                common_tasks_collection.insert_one(common_task.to_dict())
 
-            return jsonify(ResponseBody([task.to_dict() for task in tasks], Status.SUCCESS).to_dict())
+            return jsonify(response_body([jira_task.to_dict() for jira_task in tasks], Status.SUCCESS).to_dict())
 
         else:
-            return jsonify(ResponseBody(None, Status.FAILED, response.text, Code.CLIENT_ERROR).to_dict()), response.status_code
+            return jsonify(response_body(None, Status.FAILED, response.text, Code.CLIENT_ERROR).to_dict()), response.status_code
 
     except Exception as e:
-        return jsonify(ResponseBody(None, Status.FAILED, str(e), Code.INTERNAL_ERROR).to_dict())
+        return jsonify(response_body(None, Status.FAILED, str(e), Code.INTERNAL_ERROR).to_dict())
 
     #             tasks.append(task)
     #             jira_tasks_collection.insert_one(task.to_dict())
@@ -117,7 +124,7 @@ def get_jira_tasks_from_db():
             task = objectid_to_str(task)  
             tasks.append(task)
 
-        response_body = ResponseBody(
+        response_body = response_body(
             code = Code.SUCCESS,
             result = tasks,
             status = Status.SUCCESS,
@@ -127,7 +134,7 @@ def get_jira_tasks_from_db():
         return jsonify(response_body.to_dict())
 
     except Exception as e:
-        response_body = ResponseBody(
+        response_body = response_body(
             result = None,
             status = Status.FAILED,
             message = str(e)

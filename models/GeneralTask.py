@@ -2,7 +2,7 @@ from typing import List, Optional
 from datetime import datetime
 
 from models.LarksuiteTask import LarksuiteTask
-from models.JiraTask import JiraTask
+from JiraTask import JiraTask
 from models.TrelloTask import TrelloTask
 
 class GeneralTask:

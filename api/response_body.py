@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 
 
 @dataclass
-class ResponseBody:
+class response_body:
     result: Any
     status: int
     message: Optional[str] = None

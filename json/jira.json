@@ -1,0 +1,29 @@
+{
+    "projects": [
+      {
+        "_id": "project_id",
+        "name": "Project Name",
+        "description": "Project Description",
+        "owner": "user_id",
+        "members": ["user_id1", "user_id2"],
+        "issues": [
+          {
+            "_id": "issue_id",
+            "title": "Issue Title",
+            "description": "Issue Description",
+            "type": "Task/Bug/Story",
+            "status": "To Do/In Progress/Done",
+            "assignee": "user_id",
+            "priority": "Low/Medium/High",
+            "comments": [
+              {
+                "user": "user_id",
+                "comment": "Comment text",
+                "created_at": "2025-01-20T10:00:00Z"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }

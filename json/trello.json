@@ -1,0 +1,33 @@
+{
+    "boards": [
+      {
+        "_id": "board_id",
+        "name": "Board Name",
+        "owner": "user_id",
+        "members": ["user_id1", "user_id2"],
+        "lists": [
+          {
+            "_id": "list_id",
+            "name": "List Name",
+            "cards": [
+              {
+                "_id": "card_id",
+                "title": "Card Title",
+                "description": "Card Description",
+                "assignees": ["user_id1", "user_id2"],
+                "labels": ["Label1", "Label2"],
+                "due_date": "2025-01-31T23:59:59Z",
+                "comments": [
+                  {
+                    "user": "user_id",
+                    "comment": "Comment text",
+                    "created_at": "2025-01-20T10:00:00Z"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
