@@ -79,7 +79,7 @@
 #         tasks.append(task)
 #     return tasks
 from dataclasses import dataclass
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 @dataclass
 class LarksuiteTask:
@@ -87,9 +87,15 @@ class LarksuiteTask:
     summary: str
     completed_at: str
     due: Dict[str, Any]
-    members: list
+    start: Dict[str, Any]
+    members: Dict[str, Any]
     subtask_count: int
     extra_data: Dict[str, Any]
+    status: str
+    priority: str
+    description: Optional[str]
+   
+    
 
     def to_dict(self):
         return {
@@ -97,7 +103,11 @@ class LarksuiteTask:
             "summary": self.summary,
             "completed_at": self.completed_at,
             "due": self.due,
+            "start":self.start,
             "members": self.members,
             "subtask_count": self.subtask_count,
-            "extra_data": self.extra_data
+            "extra_data": self.extra_data,
+            "status": self.status,
+            "priority": self.priority,
+            "description" : self.description
         }

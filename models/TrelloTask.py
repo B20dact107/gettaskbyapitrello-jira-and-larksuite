@@ -6,7 +6,7 @@ class TrelloTask:
     def __init__(
         self,
         id: str,
-        name: str,
+        title: str,
         desc: Optional[str],
         list_name: str,
         members: List[str],
@@ -14,10 +14,10 @@ class TrelloTask:
         updated_at: Optional[str],
         due_date: Optional[str],
         labels: Optional[List[str]] = None,
-        metadata: Optional[dict] = None,
+        extend: Optional[dict] = None,
     ):
         self.id = id
-        self.name = name
+        self.title = title
         self.desc = desc
         self.list_name = list_name
         self.members = members
@@ -25,8 +25,8 @@ class TrelloTask:
         self.updated_at = updated_at
         self.due_date = due_date
         self.labels = labels or []
-        self.metadata = metadata or {}
+        self.extend = extend or {}
 
     def __repr__(self):
-        return f"<TrelloTask id={self.id} name={self.name}>"
+        return f"<TrelloTask id={self.id} name={self.title}>"
 

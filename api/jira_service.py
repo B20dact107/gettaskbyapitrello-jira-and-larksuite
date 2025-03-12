@@ -1,5 +1,4 @@
-from dotenv import load_dotenv
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Blueprint
 import requests
 from requests.auth import HTTPBasicAuth
 import os 
@@ -7,27 +6,18 @@ from models.JiraTask import JiraTask
 from api.response_body import Code, response_body, Status
 
 from MongoDBConnection import MongoDBConnection
-from bson import ObjectId
 
 from models.Task import Task
+from api.helpers import objectid_to_str
+from dotenv import load_dotenv
 
-def objectid_to_str(obj):
-    if isinstance(obj, ObjectId):
-        return str(obj)
-    elif isinstance(obj, list):
-        return [objectid_to_str(item) for item in obj]
-    elif isinstance(obj, dict):
-        return {key: objectid_to_str(value) for key, value in obj.items()}
-    return obj
-
+jira_bp = Blueprint('jira', __name__, url_prefix='/jira')
 load_dotenv()
-
-app = Flask(__name__)
 
 JIRA_DOMAIN = os.getenv("JIRA_DOMAIN")
 JIRA_API_TOKEN = os.getenv("JIRA_API_TOKEN")
 JIRA_EMAIL = os.getenv("JIRA_EMAIL")
-@app.route('/jira/task')
+@jira_bp.route('/task')
 def get_jira_tasks():
     try:
         jql = request.args.get("jql")
@@ -36,7 +26,7 @@ def get_jira_tasks():
             #return jsonify({"error": "Parameter 'jql' is required"}), 400
 
         url = f"https://{JIRA_DOMAIN}/rest/api/3/search"
-        query = {"jql": jql, "maxResults": 10}
+        query = {"jql": jql, "maxResults": 100}
 
         response = requests.get(
             url,
@@ -97,19 +87,7 @@ def get_jira_tasks():
     except Exception as e:
         return jsonify(response_body(None, Status.FAILED, str(e), Code.INTERNAL_ERROR).to_dict())
 
-    #             tasks.append(task)
-    #             jira_tasks_collection.insert_one(task.to_dict())
-    #             tasks.append(task)
-
-    #         # Chuyển đổi danh sách các đối tượng JiraTask thành JSON
-    #         return jsonify([task.to_dict() for task in tasks])
-
-    #     else:
-    #         return jsonify({"error": response.text}), response.status_code
-
-    # except Exception as e:
-    #     return jsonify({"error": str(e)})
-@app.route('/jira/tasksdb')
+@jira_bp.route('/tasksdb')
 def get_jira_tasks_from_db():
     try:
         mongo_conn = MongoDBConnection()  
@@ -118,7 +96,6 @@ def get_jira_tasks_from_db():
         tasks_cursor = jira_tasks_collection.find()  
         
         tasks = []  
-
    
         for task in tasks_cursor:
             task = objectid_to_str(task)  
@@ -142,5 +119,3 @@ def get_jira_tasks_from_db():
         return jsonify(response_body.to_dict())
 
 
-if __name__ == '__main__':
-    app.run(debug = True)

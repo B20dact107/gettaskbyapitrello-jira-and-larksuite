@@ -13,6 +13,7 @@ class JiraTask:
         updated: Optional[str],
         due_date: Optional[str],
         labels: Optional[List[str]] = None,
+        extend: Optional[dict] = None
     ):
         self.id = id
         self.summary = summary
@@ -24,6 +25,7 @@ class JiraTask:
         self.updated = updated
         self.due_date = due_date
         self.labels = labels or []
+        self.extend = extend or {}
 
     def __repr__(self):
         return f"<JiraTask id={self.id} summary={self.summary}>"
@@ -42,4 +44,5 @@ class JiraTask:
             "updated": self.updated,
             "due_date": self.due_date,
             "labels": self.labels,
+            "extend": self.extend
         }
