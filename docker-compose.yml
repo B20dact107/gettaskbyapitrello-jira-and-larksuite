@@ -1,0 +1,37 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: task-bot
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    ports:
+      - "5000:5000"
+      - "8443:8443"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
+      - TRELLO_API_KEY=${TRELLO_API_KEY}
+      - TRELLO_API_TOKEN=${TRELLO_API_TOKEN}
+      - LARKSUITE_APP_ID=${LARKSUITE_APP_ID}
+      - LARKSUITE_APP_SECRET=${LARKSUITE_APP_SECRET}
+      - JIRA_EMAIL=${JIRA_EMAIL}
+      - JIRA_API_TOKEN=${JIRA_API_TOKEN}
+      - JIRA_DOMAIN=${JIRA_DOMAIN}
+    volumes:
+      - ./data:/app/data
+
+  mongo:
+    image: mongo:6.0
+    container_name: mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+volumes:
+  mongodb_data:
