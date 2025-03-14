@@ -20,6 +20,8 @@ from api.telegram_service import (
     get_trello_board_name,
     get_trello_list_name,
     handle_jira_connection,
+    handle_lark_authorization_code,
+    handle_lark_tasklist_name,
     get_jira_project_key,
     connect_platform,
     handle_platform_input,
@@ -28,7 +30,7 @@ from api.telegram_service import (
     # Import các state từ create_issue
     TITLE, DESCRIPTION, PRIORITY, ASSIGNEES, PLATFORM,
     # Import các state từ kết nối nền tảng
-    PLATFORM_SELECTED, AWAITING_TRELLO_BOARD_NAME, AWAITING_TRELLO_LIST_NAME, AWAITING_JIRA_PROJECT_KEY
+    PLATFORM_SELECTED, AWAITING_TRELLO_BOARD_NAME, AWAITING_TRELLO_LIST_NAME, AWAITING_JIRA_PROJECT_KEY,AWAITING_LARK_CREDS,AWAITING_LARK_TASKLIST_NAME
 )
 
 def run_bot():
@@ -56,6 +58,8 @@ def run_bot():
         AWAITING_TRELLO_BOARD_NAME: [MessageHandler(filters.TEXT, get_trello_board_name)],
         AWAITING_TRELLO_LIST_NAME: [MessageHandler(filters.TEXT, get_trello_list_name)],
         AWAITING_JIRA_PROJECT_KEY: [MessageHandler(filters.TEXT, get_jira_project_key)],
+        AWAITING_LARK_CREDS:       [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_lark_authorization_code)],
+        AWAITING_LARK_TASKLIST_NAME: [MessageHandler(filters.TEXT, handle_lark_tasklist_name)],
     },
     fallbacks=[CommandHandler('cancel', cancel)]
     )
@@ -65,11 +69,12 @@ def run_bot():
     application.add_handler(conv_auth)
     application.add_handler(CommandHandler("tasks", show_tasks))
     application.add_handler(conv_handler)
-    
     start_scheduler()
     
-    # Chạy bot ở chế độ polling (hoặc webhook)
-    application.run_polling()
-
+    try:
+        # Chạy bot với event loop riêng
+        application.run_polling()
+    finally:
+        loop.close()
 if __name__ == "__main__":
     run_bot()

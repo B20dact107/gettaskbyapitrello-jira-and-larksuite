@@ -27,7 +27,7 @@ user_credentials = db["user_credentials"]
 
 
 # Thêm phần định nghĩa state ở đầu file
-(AWAITING_TRELLO_CREDS, AWAITING_JIRA_CREDS, AWAITING_LARK_CODE, PLATFORM_SELECTED) = range(4, 8)
+(AWAITING_TRELLO_CREDS, AWAITING_JIRA_CREDS,  AWAITING_LARK_CREDS, PLATFORM_SELECTED, AWAITING_LARK_TASKLIST_NAME) = range(5, 10)  
 
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -103,8 +103,8 @@ async def handle_platform_connect(update: Update, context: ContextTypes.DEFAULT_
         return await handle_trello_connection(update, context)
     elif platform == "jira":
         return await handle_jira_connection(update, context)
-    # elif platform == "lark":
-    #     return await handle_lark_connection(update, context)
+    elif platform == "lark":
+        return await handle_lark_connection(update, context)
     else:
         await query.answer("Nền tảng không hỗ trợ!")
         return ConversationHandler.END
@@ -315,10 +315,55 @@ async def create_task_on_platform(platform: str, task_data: dict):
         
         except Exception as e:
             raise Exception(f"Không thể tạo task trên Jira: {str(e)}")
+        
     
     
     elif platform == "lark":
-        print(f"a nhô 1 2 3 4")
+        try:
+            # Lấy access token từ DB bằng cách truyền user_id từ task_data
+            access_token = get_lark_access_token(task_data["user_id"])
+        # Gọi API tạo task
+            creds = user_credentials.find_one({
+                "user_id": task_data["user_id"], 
+                "platform": "lark"
+            })
+            
+            if not creds or "default_tasklist" not in creds:
+                raise Exception("Chưa chọn task list trên Lark!")
+            
+            url = "https://open.larksuite.com/open-apis/task/v2/tasks"
+            headers = {
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json"
+            }
+            members = []
+            for username in task_data.get("assignees", []):
+                user = users_collection.find_one({"username": username})
+                if user:
+                    members.append({"id": str(user["user_id"])})
+            tasklist_guid = creds["default_tasklist"]
+            payload = {
+                "summary": task_data["title"].strip(),
+                "description": task_data.get("description", ""),
+                "due": {
+                    "timestamp": int((datetime.fromisoformat(task_data["due_date"])).timestamp() * 1000),
+                    "is_all_day": False  # Điều chỉnh nếu cần
+                },
+                "tasklists": [
+                    {"tasklist_guid": tasklist_guid}
+                ]
+            }
+            print("Payload gửi lên Lark:", payload)
+
+            response = requests.post(url, headers=headers, json=payload)
+
+            if response.status_code != 200:
+                raise Exception(f"Lỗi Lark API: {response.text}")
+
+            return response.json()["data"]["task"]["guid"]
+            
+        except Exception as e:
+            raise Exception(f"Lỗi tạo task trên Lark: {str(e)}")
 
 def get_jira_account_id_from_username(username: str) -> str:
     url = f"https://{os.getenv('JIRA_DOMAIN')}/rest/api/3/user/search"
@@ -425,8 +470,8 @@ async def handle_platform_input(update: Update, context: ContextTypes.DEFAULT_TY
         return await handle_trello_connection(update, context)
     elif platform == "jira":
         return await handle_jira_connection(update, context)
-    # elif platform == "lark":
-    #     return await handle_lark_connection(update, context)
+    elif platform == "lark":
+        return await handle_lark_connection(update, context)
     else:
         await update.message.reply_text("❌ Nền tảng không hỗ trợ!")
         return ConversationHandler.END
@@ -519,6 +564,143 @@ async def get_jira_project_key(update: Update, context: ContextTypes.DEFAULT_TYP
     )
     await update.message.reply_text("✅ Kết nối Jira thành công!")
     return ConversationHandler.END
+#larksuite
+async def handle_lark_connection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Tự động kết nối LarkSuite bằng thông tin từ .env"""
+    user_id = update.effective_user.id
+    
+    app_id = os.getenv("LARKSUITE_APP_ID")
+    app_secret = os.getenv("LARKSUITE_APP_SECRET")
+    larkurl = os.getenv("LARKSUITE_OAUTH_AUTHORIZE_URL")
+    lark_redirect_uri = 'http://127.0.0.1:5000/oauth/callback'
+    
+    oauth_url = (
+         f"https://open.larksuite.com/open-apis/authen/v1/index?"
+         f"app_id={app_id}&"
+         f"redirect_uri={lark_redirect_uri}"
+    )
+    await update.message.reply_text(
+        "🔑 Vui lòng truy cập URL sau để cấp quyền cho ứng dụng:\n"
+        f"{oauth_url}\n\n"
+        "Sau khi đồng ý, hãy nhập CODE bạn nhận được từ trang xác thực."
+    )
+    return AWAITING_LARK_CREDS
+
+async def handle_lark_authorization_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    code = update.message.text.strip()
+    user_id = update.effective_user.id
+    
+    try:
+        # Gọi API để lấy access token
+        token_url = "https://open.larksuite.com/open-apis/authen/v1/access_token"
+        headers = {"Content-Type": "application/json"}
+        payload = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "app_id": os.getenv("LARKSUITE_APP_ID"),
+            "app_secret": os.getenv("LARKSUITE_APP_SECRET")
+        }
+        
+        response = requests.post(token_url, json=payload, headers=headers)
+        response_data = response.json()
+        
+        if response_data.get("code") != 0:
+            raise Exception(f"Lỗi Lark API: {response_data.get('msg')}")
+            
+        # Lưu thông tin token vào database
+        user_credentials.update_one(
+            {"user_id": user_id, "platform": "lark"},
+            {"$set": {
+                "access_token": response_data["data"]["access_token"],
+                "refresh_token": response_data["data"]["refresh_token"],
+                "expires_in": response_data["data"]["expires_in"],
+                "connected_at": datetime.now()
+            }},
+            upsert=True
+        )
+        
+        await update.message.reply_text("📋 Nhập TÊN TASK LIST chính xác trên Lark:")
+        return AWAITING_LARK_TASKLIST_NAME  
+        
+    except Exception as e:
+        await update.message.reply_text(f"❌ Lỗi: {str(e)}")
+        return ConversationHandler.END
+async def handle_lark_tasklist_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        tasklist_name = update.message.text.strip()
+        user_id = update.effective_user.id
+        
+        # Lấy access token từ DB
+        access_token = get_lark_access_token(user_id)
+        
+        # Gọi API tìm kiếm task list
+        url = "https://open.larksuite.com/open-apis/task/v2/tasklists"
+        headers = {"Authorization": f"Bearer {access_token}"}
+        
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        
+        tasklist = next(
+            (tl for tl in response.json()["data"]["items"] if tl["name"].lower() == tasklist_name.lower()),
+            None
+        )
+        
+        if not tasklist:
+            raise Exception(f"Không tìm thấy task list với tên '{tasklist_name}'")
+        
+        user_credentials.update_one(
+            {"user_id": user_id, "platform": "lark"},
+            {"$set": {"default_tasklist": tasklist["guid"]}}
+        )
+        
+        await update.message.reply_text(f"✅ Đã chọn task list '{tasklist_name}' thành công!")
+        return ConversationHandler.END
+
+    except Exception as e:
+        await update.message.reply_text(f"❌ Lỗi: {str(e)}")
+        return ConversationHandler.END
+def get_lark_access_token(user_id: int):
+    """Lấy access token từ database và tự động renew nếu hết hạn"""
+    creds = user_credentials.find_one({"user_id": user_id, "platform": "lark"})
+    
+    if not creds:
+        raise Exception("Chưa kết nối LarkSuite. Dùng lệnh /connect lark để kết nối")
+    
+    # Kiểm tra thời hạn token
+    expires_at = creds["connected_at"] + timedelta(seconds=creds["expires_in"] - 300)  # Trừ 5p để đề phòng
+    if datetime.now() < expires_at:
+        return creds["access_token"]
+    
+    # Tự động renew token nếu hết hạn
+    print("🔄 Token hết hạn, đang renew...")
+    refresh_url = "https://open.larksuite.com/open-apis/authen/v1/refresh_access_token"
+    headers = {"Content-Type": "application/json"}
+    payload = {
+        "grant_type": "refresh_token",
+        "refresh_token": creds["refresh_token"],
+        "app_id": os.getenv("LARKSUITE_APP_ID"),
+        "app_secret": os.getenv("LARKSUITE_APP_SECRET")
+    }
+    
+    response = requests.post(refresh_url, json=payload, headers=headers)
+    refresh_data = response.json()
+    
+    if refresh_data.get("code") != 0:
+        raise Exception(f"Lỗi renew token: {refresh_data.get('msg')}")
+    
+    # Cập nhật database
+    user_credentials.update_one(
+        {"_id": creds["_id"]},
+        {"$set": {
+            "access_token": refresh_data["data"]["access_token"],
+            "refresh_token": refresh_data["data"]["refresh_token"],
+            "expires_in": refresh_data["data"]["expires_in"],
+            "connected_at": datetime.now()
+        }}
+    )
+    
+    return refresh_data["data"]["access_token"]
+    
 def start_scheduler():
     loop = asyncio.get_event_loop() 
     scheduler = AsyncIOScheduler(event_loop=loop)

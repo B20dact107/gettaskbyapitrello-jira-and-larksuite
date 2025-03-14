@@ -111,28 +111,28 @@ def authorize():
     return redirect(auth_service.get_auth_url())
 
 @lark_bp.route('/oauth/callback')
-def oauth_callback():
-    """Exchange authorization code for access token"""
-    code = request.args.get('code')
-    if not code:
-        return jsonify(response_body(
-            status=Status.FAILED,
-            message="Missing authorization code",
-            code=Code.CLIENT_ERROR
-        ).to_dict()), 400
+# def oauth_callback():
+    # """Exchange authorization code for access token"""
+    # code = request.args.get('code')
+    # if not code:
+    #     return jsonify(response_body(
+    #         status=Status.FAILED,
+    #         message="Missing authorization code",
+    #         code=Code.CLIENT_ERROR
+    #     ).to_dict()), 400
 
-    try:
-        token_data = auth_service.exchange_code(code)
-        return jsonify(response_body(
-            result=token_data,
-            status=Status.SUCCESS
-        ).to_dict())
-    except Exception as e:
-        return jsonify(response_body(
-            status=Status.FAILED,
-            message=str(e),
-            code=Code.INTERNAL_ERROR
-        ).to_dict()), 500
+    # try:
+    #     token_data = auth_service.exchange_code(code)
+    #     return jsonify(response_body(
+    #         result=token_data,
+    #         status=Status.SUCCESS
+    #     ).to_dict())
+    # except Exception as e:
+    #     return jsonify(response_body(
+    #         status=Status.FAILED,
+    #         message=str(e),
+    #         code=Code.INTERNAL_ERROR
+    #     ).to_dict()), 500
 
 @lark_bp.route('/tasks')
 @handle_api_errors
