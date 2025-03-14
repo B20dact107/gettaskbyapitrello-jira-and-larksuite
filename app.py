@@ -25,7 +25,8 @@ def lark_callback():
     <script>window.close();</script>
     """
 def run_flask():
-    app.run(host='0.0.0.0', port=5000, use_reloader=False)
+    app.run(debug=True, use_reloader=False)
+    #app.run(host='0.0.0.0', port=5000, use_reloader=False)
 if __name__ == '__main__':
     # Chạy Flask và bot Telegram trên 2 thread riêng
     flask_thread = threading.Thread(target=run_flask)
