@@ -5,7 +5,7 @@ from api.larksuite_service import lark_bp
 from api.trello_service import trello_bp
 from dotenv import load_dotenv
 import threading
-from telegram_bot import run_bot  # Import service bot
+from api.telegram_bot import run_bot  # Import service bot
 
 load_dotenv()
 
@@ -16,12 +16,14 @@ app.register_blueprint(trello_bp)
 
 def run_flask():
     app.run(debug=True, use_reloader=False)
+def run_telegram_bot():
+    from api.telegram_bot import run_bot
+    run_bot()
 
 if __name__ == '__main__':
     # Chạy Flask và bot Telegram trên 2 thread riêng
-    run_bot()
     flask_thread = threading.Thread(target=run_flask)
-    bot_thread = threading.Thread(target=run_bot)
+    bot_thread = threading.Thread(target=run_telegram_bot)
     
     flask_thread.start()
     bot_thread.start()

@@ -71,9 +71,9 @@ def run_bot():
     application.add_handler(conv_handler)
     start_scheduler(loop)
     
-    try:
+    #try:
         # Chạy bot với event loop riêng
-        application.run_polling()
-    finally:
-        loop.close()
+    application.run_polling()
+    #finally:
+    #    loop.close()
 
