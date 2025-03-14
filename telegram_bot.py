@@ -76,5 +76,4 @@ def run_bot():
         application.run_polling()
     finally:
         loop.close()
-if __name__ == "__main__":
-    run_bot()
+
