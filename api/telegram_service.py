@@ -701,8 +701,8 @@ def get_lark_access_token(user_id: int):
     
     return refresh_data["data"]["access_token"]
     
-def start_scheduler():
-    loop = asyncio.get_event_loop() 
+def start_scheduler(loop):
+    #loop = asyncio.get_event_loop() 
     scheduler = AsyncIOScheduler(event_loop=loop)
     scheduler.add_job(check_deadlines, CronTrigger(hour=17, minute=18))  # Chạy hàng ngày lúc 9h
     scheduler.start()

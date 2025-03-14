@@ -69,7 +69,7 @@ def run_bot():
     application.add_handler(conv_auth)
     application.add_handler(CommandHandler("tasks", show_tasks))
     application.add_handler(conv_handler)
-    start_scheduler()
+    start_scheduler(loop)
     
     try:
         # Chạy bot với event loop riêng

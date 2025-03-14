@@ -24,18 +24,16 @@ def lark_callback():
     <p>Bạn có thể đóng trang này và quay lại Telegram bot</p>
     <script>window.close();</script>
     """
-    
-
 def run_flask():
     app.run(host='0.0.0.0', port=5000, use_reloader=False)
-
 if __name__ == '__main__':
     # Chạy Flask và bot Telegram trên 2 thread riêng
-    flask_process = Process(target=run_flask)
-    bot_process = Process(target=run_bot)  # Đảm bảo run_bot là hàm độc lập
+    flask_thread = threading.Thread(target=run_flask)
+    bot_thread = threading.Thread(target=run_bot)
     
-    flask_process.start()
-    bot_process.start()
+    flask_thread.start()
+    bot_thread.start()
     
-    flask_process.join()
-    bot_process.join()
+    flask_thread.join()
+    bot_thread.join()
+    
