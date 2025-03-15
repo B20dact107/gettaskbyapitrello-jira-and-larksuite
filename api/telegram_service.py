@@ -22,7 +22,6 @@ load_dotenv()
 client = MongoClient(os.getenv("MONGO_URI"))
 db= client["task_database"]
 tasks_collection = db ["unified_tasks"]
-users_collection = db["users"]  
 user_credentials = db["user_credentials"]
 
 
@@ -40,7 +39,7 @@ async def check_trello_auth(user_id: int) -> bool:
     return creds is not None and "default_board" in creds and "default_list" in creds
 
 async def create_issue(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = users_collection.find_one({"chat_id": update.message.chat_id})
+    user = user_credentials.find_one({"chat_id": update.message.chat_id})
     if not user:
         await update.message.reply_text("❌ Vui lòng dùng /start trước!")
         return ConversationHandler.END
@@ -112,7 +111,7 @@ async def handle_platform_connect(update: Update, context: ContextTypes.DEFAULT_
 async def start(update : Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
     # Lưu thông tin người dùng vào collection 'users'
-    db.users.update_one(
+    db.user_credentials.update_one(
         {"user_id": user.id},
         {"$set": {
             "username": user.username,
@@ -125,28 +124,29 @@ async def start(update : Update, context: ContextTypes.DEFAULT_TYPE):
         "Các lệnh hỗ trợ:\n"
         "/start - Hướng dẫn sử dụng\n"
         "/username - [user_name] Thiết lập tên người dùng\n"
+        "/connect - Kết nối với Trello, Jira, Larksuite\n" 
         "/tasks - Hiển thị danh sách task (dùng user_id nếu cung cấp, "
         "nếu không thì dùng chat_id)\n"
         "/create_issue [nội dung] - Tạo task mới\n"
         "⚠️ Cảnh báo tự động sẽ được gửi khi task sắp hết hạn!"
     )
-async def username(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args:
-        await update.message.reply_text("⚠️ Vui lòng nhập username (ví dụ: /username lamdao)")
-        return
+# async def username(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#     if not context.args:
+#         await update.message.reply_text("⚠️ Vui lòng nhập username (ví dụ: /username lamdao)")
+#         return
     
-    new_username = context.args[0]
-    user = update.message.from_user
+#     new_username = context.args[0]
+#     user = update.message.from_user
     
-    users_collection.update_one(
-        {"user_id": user.id},
-        {"$set": {"username": new_username}},
-        upsert=True
-    )
+#     users_collection.update_one(
+#         {"user_id": user.id},
+#         {"$set": {"username": new_username}},
+#         upsert=True
+#     )
     
-    await update.message.reply_text(f"✅ Đã cập nhật username thành: {new_username}")
+#     await update.message.reply_text(f"✅ Đã cập nhật username thành: {new_username}")
 async def show_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = users_collection.find_one({"chat_id": update.message.chat_id})
+    user = user_credentials.find_one({"chat_id": update.message.chat_id})
     
     if not user:
         await update.message.reply_text("❌ Vui lòng dùng /start trước!")
@@ -338,7 +338,7 @@ async def create_task_on_platform(platform: str, task_data: dict):
             }
             members = []
             for username in task_data.get("assignees", []):
-                user = users_collection.find_one({"username": username})
+                user = user_credentials.find_one({"username": username})
                 if user:
                     members.append({"id": str(user["user_id"])})
             tasklist_guid = creds["default_tasklist"]
@@ -382,11 +382,16 @@ async def finalize_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         # Lấy thông tin từ context
         platform = context.user_data.get("platform", "").lower()
-        user = users_collection.find_one({"chat_id": update.message.chat_id})
-        
+        user = user_credentials.find_one({"chat_id": update.message.chat_id})
         if not user:
             await update.message.reply_text("❌ Vui lòng dùng /start trước!")
             return
+        current_username = update.message.from_user.username
+        if user.get("username") != current_username:
+            user_credentials.update_one(
+                {"user_id": user["user_id"]},
+                {"$set": {"username": current_username}}
+            )
         
         # Chuẩn bị dữ liệu task
         task_data = {
@@ -431,7 +436,7 @@ async def check_deadlines():
         assignees = task.get("assignees", [])
         
         for username in assignees:
-            user = users_collection.find_one({"username": username})
+            user = user_credentials.find_one({"username": username})
             
             if user and user.get("active", True):
                 await send_alert(user["chat_id"], task)
