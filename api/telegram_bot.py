@@ -9,6 +9,7 @@ from telegram.ext import (
 from api.telegram_service import (
     TOKEN,
     start,
+    username,
     show_tasks,
     create_issue,
     get_title,
@@ -64,6 +65,7 @@ def run_bot():
     )
 
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("username", username))
     application.add_handler(conv_auth)
     application.add_handler(CommandHandler("tasks", show_tasks))
     application.add_handler(conv_handler)
