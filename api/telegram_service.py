@@ -123,7 +123,6 @@ async def start(update : Update, context: ContextTypes.DEFAULT_TYPE):
         "👋 Chào mừng đến với Assistant AI Bot!\n"
         "Các lệnh hỗ trợ:\n"
         "/start - Hướng dẫn sử dụng\n"
-        "/username - [user_name] Thiết lập tên người dùng\n"
         "/connect - Kết nối với Trello, Jira, Larksuite\n" 
         "/tasks - Hiển thị danh sách task (dùng user_id nếu cung cấp, "
         "nếu không thì dùng chat_id)\n"
@@ -540,6 +539,8 @@ async def get_trello_list_name(update: Update, context: ContextTypes.DEFAULT_TYP
         user_credentials.update_one(
             {"user_id": update.effective_user.id, "platform": "trello"},
             {"$set": {
+                'api_key': os.getenv("TRELLO_API_KEY"),
+                'token': os.getenv("TRELLO_API_TOKEN")
                 "default_board": board_id,
                 "default_list": list_id,
                 "connected_at": datetime.now()
