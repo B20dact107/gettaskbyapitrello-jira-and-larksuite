@@ -539,8 +539,8 @@ async def get_trello_list_name(update: Update, context: ContextTypes.DEFAULT_TYP
         user_credentials.update_one(
             {"user_id": update.effective_user.id, "platform": "trello"},
             {"$set": {
-                'api_key': os.getenv("TRELLO_API_KEY"),
-                'token': os.getenv("TRELLO_API_TOKEN")
+                "api_key": os.getenv("TRELLO_API_KEY"),
+                "token": os.getenv("TRELLO_API_TOKEN"),
                 "default_board": board_id,
                 "default_list": list_id,
                 "connected_at": datetime.now()
