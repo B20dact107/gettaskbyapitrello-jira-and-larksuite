@@ -27,6 +27,7 @@ from api.telegram_service import (
     handle_platform_input,
     cancel,
     start_scheduler,
+    handle_message,
     # Import các state từ create_issue
     TITLE, DESCRIPTION, PRIORITY, ASSIGNEES, PLATFORM,
     # Import các state từ kết nối nền tảng
@@ -69,6 +70,7 @@ def run_bot():
     application.add_handler(conv_auth)
     application.add_handler(CommandHandler("tasks", show_tasks))
     application.add_handler(conv_handler)
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     start_scheduler(loop)
     
     #try:
