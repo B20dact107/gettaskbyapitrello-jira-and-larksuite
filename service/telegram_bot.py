@@ -6,7 +6,7 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
-from api.telegram_service import (
+from service.telegram_service import (
     TOKEN,
     start,
     username,
@@ -28,10 +28,11 @@ from api.telegram_service import (
     cancel,
     start_scheduler,
     handle_message,
+    get_jira_email,
     # Import các state từ create_issue
     TITLE, DESCRIPTION, PRIORITY, ASSIGNEES, PLATFORM,
     # Import các state từ kết nối nền tảng
-    PLATFORM_SELECTED, AWAITING_TRELLO_BOARD_NAME, AWAITING_TRELLO_LIST_NAME, AWAITING_JIRA_PROJECT_KEY,AWAITING_LARK_CREDS,AWAITING_LARK_TASKLIST_NAME
+    PLATFORM_SELECTED, AWAITING_TRELLO_BOARD_NAME, AWAITING_TRELLO_LIST_NAME, AWAITING_JIRA_CREDS, AWAITING_JIRA_PROJECT_KEY,AWAITING_LARK_CREDS,AWAITING_LARK_TASKLIST_NAME
 )
 
 def run_bot():
@@ -58,6 +59,7 @@ def run_bot():
         PLATFORM_SELECTED: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_platform_input)],
         AWAITING_TRELLO_BOARD_NAME: [MessageHandler(filters.TEXT, get_trello_board_name)],
         AWAITING_TRELLO_LIST_NAME: [MessageHandler(filters.TEXT, get_trello_list_name)],
+        AWAITING_JIRA_CREDS: [MessageHandler(filters.TEXT, get_jira_email)],
         AWAITING_JIRA_PROJECT_KEY: [MessageHandler(filters.TEXT, get_jira_project_key)],
         AWAITING_LARK_CREDS:       [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_lark_authorization_code)],
         AWAITING_LARK_TASKLIST_NAME: [MessageHandler(filters.TEXT, handle_lark_tasklist_name)],
@@ -73,8 +75,7 @@ def run_bot():
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     start_scheduler(loop)
     
-    #try:
-        # Chạy bot với event loop riêng
+
     application.run_polling()
     #finally:
     #    loop.close()

@@ -1,11 +1,11 @@
 from flask import Flask
-from api.jira_service import jira_bp
+from service.jira_service import jira_bp
 #from api.larksuite_api import lark_bp
-from api.larksuite_service import lark_bp
-from api.trello_service import trello_bp
+from service.larksuite_service import lark_bp
+from service.trello_service import trello_bp
 from dotenv import load_dotenv
 import threading
-from api.telegram_bot import run_bot  # Import service bot
+from service.telegram_bot import run_bot  # Import service bot
 import logging
 load_dotenv()
 

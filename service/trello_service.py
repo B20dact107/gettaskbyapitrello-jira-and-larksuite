@@ -2,8 +2,8 @@ from flask import Flask, jsonify, Blueprint
 import requests
 import os
 from MongoDBConnection import MongoDBConnection
-from api.response_body import Code, response_body, Status
-from api.helpers import objectid_to_str
+from service.response_body import Code, response_body, Status
+from service.helpers import objectid_to_str
 from dotenv import load_dotenv
 
 trello_bp = Blueprint('trello', __name__, url_prefix='/trello')

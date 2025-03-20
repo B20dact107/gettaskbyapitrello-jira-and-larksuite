@@ -2,7 +2,7 @@ from bson import ObjectId
 import requests
 from functools import wraps
 from flask import jsonify
-from api.response_body import Code, response_body, Status
+from service.response_body import Code, response_body, Status
 
 def objectid_to_str(obj):
     if isinstance(obj, ObjectId):

@@ -9,6 +9,8 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
+import logging
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
 from telegram.ext import ConversationHandler, CallbackQueryHandler  
 from pymongo import MongoClient
 from dotenv import load_dotenv
@@ -18,7 +20,7 @@ from apscheduler.triggers.cron import CronTrigger
 from datetime import datetime, timedelta  
 import google.generativeai as genai
 import json
-from api.gemini_prompts import TASK_CREATION_PROMPT
+from service.gemini_prompts import TASK_CREATION_PROMPT
 load_dotenv()
 
 client = MongoClient(os.getenv("MONGO_URI"))
@@ -132,7 +134,6 @@ async def username(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     new_username = context.args[0]
     user = update.message.from_user
-    
     user_credentials.update_many(
         {"user_id": user.id},
         {"$set": {"username": new_username}},
@@ -147,7 +148,6 @@ async def show_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Vui lòng dùng /start trước!")
         return
     
-    # Tìm các task liên quan
     tasks = tasks_collection.find({
         "$or": [
             {"members": user["username"]},
@@ -269,20 +269,16 @@ async def create_task_on_platform(platform: str, task_data: dict):
                 creds["jira_domain"],
                 creds["jira_email"],
                 creds["jira_api_token"],
-                creds["project_key"]
+                creds["project_key"],
+                creds["jira_account_id"],
             ]):
                 raise Exception("Thiếu cấu hình Jira trong database!")
             
             url = f"https://{creds['jira_domain']}/rest/api/3/issue"
 
             adf_description = convert_text_to_adf(task_data.get("description", ""))
-            username_input = task_data.get("assignees", [""])[0]
-            if not username_input:
-                account_id = None
-            else:
-                account_id = get_jira_account_id_from_username(username_input)
+            account_id = creds["jira_account_id"]
         
-            # Chuẩn bị payload
             payload = {
                 "fields": {
                     "project": {"key": creds["project_key"]},
@@ -294,7 +290,6 @@ async def create_task_on_platform(platform: str, task_data: dict):
                 }
             }
            
-            # Gọi API Jira
             response = requests.post(
                 url,
                 auth=HTTPBasicAuth(creds["jira_email"], creds["jira_api_token"]),
@@ -312,9 +307,7 @@ async def create_task_on_platform(platform: str, task_data: dict):
         
     elif platform == "lark":
         try:
-            # Lấy access token từ DB bằng cách truyền user_id từ task_data
             access_token = get_lark_access_token(task_data["user_id"])
-        # Gọi API tạo task
             creds = user_credentials.find_one({
                 "user_id": task_data["user_id"], 
                 "platform": "lark"
@@ -351,7 +344,6 @@ async def create_task_on_platform(platform: str, task_data: dict):
                 "members": members 
             }
 
-
             response = requests.post(url, headers=headers, json=payload)
 
             if response.status_code != 200:
@@ -362,18 +354,6 @@ async def create_task_on_platform(platform: str, task_data: dict):
         except Exception as e:
             raise Exception(f"Lỗi tạo task trên Lark: {str(e)}")
 
-def get_jira_account_id_from_username(username: str) -> str:
-    url = f"https://{os.getenv('JIRA_DOMAIN')}/rest/api/3/user/search"
-    auth = HTTPBasicAuth(os.getenv("JIRA_EMAIL"), os.getenv("JIRA_API_TOKEN"))
-    params = {"query": username}
-    response = requests.get(url, params=params, auth=auth, headers={"Accept": "application/json"})
-
-    if response.status_code != 200 or not response.json():
-        raise Exception(f"Không tìm thấy user với username {username}")
-    
-    # Giả sử kết quả đầu tiên chính là user cần lấy
-    account_id =response.json()[0]["accountId"]
-    return response.json()[0]["accountId"]
         
 async def finalize_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -402,7 +382,6 @@ async def finalize_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "source_platform": platform
         }
         
-     
         platform_id = await create_task_on_platform(platform, task_data)
         
         task_record = {
@@ -449,12 +428,11 @@ async def send_alert(chat_id: int, task: dict):
     except Exception as e:
         print(f"Không gửi được cảnh báo đến {chat_id}: {str(e)}")
 
-
 async def connect_platform(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🔗 Vui lòng nhập tên nền tảng bạn muốn kết nối (trello, jira, lark):"
     )
-    return PLATFORM_SELECTED  # state để nhận input từ người dùng
+    return PLATFORM_SELECTED 
 
 async def handle_platform_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     platform = update.message.text.strip().lower()
@@ -508,7 +486,6 @@ async def get_trello_list_name(update: Update, context: ContextTypes.DEFAULT_TYP
         board_name = context.user_data['trello_board']
         list_name = update.message.text
 
-        # Lấy Board ID từ tên Board
         boards_url = "https://api.trello.com/1/members/me/boards"
         params = {
             'key': os.getenv("TRELLO_API_KEY"),
@@ -520,14 +497,12 @@ async def get_trello_list_name(update: Update, context: ContextTypes.DEFAULT_TYP
         if not board_id:
             raise Exception("Không tìm thấy Board!")
 
-        # Lấy List ID từ tên List
         lists_url = f"https://api.trello.com/1/boards/{board_id}/lists"
         response = requests.get(lists_url, params=params)
         list_id = next((l['id'] for l in response.json() if l['name'].lower() == list_name.lower()), None)
 
         if not list_id:
             raise Exception("Không tìm thấy List!")
-        # Lưu vào database
         user_credentials.update_one(
             {"user_id": update.effective_user.id, "platform": "trello"},
             {"$set": {
@@ -549,20 +524,37 @@ async def get_trello_list_name(update: Update, context: ContextTypes.DEFAULT_TYP
         return ConversationHandler.END
 ## connect jira
 async def handle_jira_connection(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Xử lý kết nối Jira: Yêu cầu nhập Project Key"""
+    """Xử lý kết nối Jira: Yêu cầu nhập Gmail của bạn"""
+    await update.message.reply_text("🔑 Nhập email Gmail của bạn:")
+    return AWAITING_JIRA_CREDS
+
+async def get_jira_email(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Xử lý nhập Gmail và chuyển sang yêu cầu nhập Project Key"""
+    jira_email = update.message.text.strip()
+    context.user_data['jira_email'] = jira_email
     await update.message.reply_text("🔑 Nhập **Project Key** của Jira (ví dụ: VCC):")
     return AWAITING_JIRA_PROJECT_KEY
 
 async def get_jira_project_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Lưu Project Key vào database"""
     project_key = update.message.text.upper()
+    jira_email = context.user_data.get('jira_email')
+    url = f"https://{os.getenv('JIRA_DOMAIN')}/rest/api/3/myself"
+    auth = HTTPBasicAuth(jira_email, os.getenv("JIRA_API_TOKEN"))
+    headers = {"Accept": "application/json"}
+    response = requests.get(url, headers=headers, auth=auth)
+    if response.status_code != 200:
+        raise Exception("Không thể lấy thông tin tài khoản từ Jira!")
+    data = response.json()
+    jira_account_id = data["accountId"]
     user_credentials.update_one(
         {"user_id": update.effective_user.id, "platform": "jira"},
         {"$set": {
             "project_key": project_key,
-            "jira_email" :os.getenv("JIRA_EMAIL"),
+            "jira_email" : jira_email,
             "jira_domain":os.getenv("JIRA_DOMAIN"),
             "jira_api_token": os.getenv("JIRA_API_TOKEN"),
+            "jira_account_id": jira_account_id,
             "username": update.message.from_user.username  
             }},
         upsert=True
@@ -673,7 +665,6 @@ def get_lark_access_token(user_id: int):
     if not creds:
         raise Exception("Chưa kết nối LarkSuite. Dùng lệnh /connect lark để kết nối")
     
-    # Kiểm tra thời hạn token
     expires_at = creds["connected_at"] + timedelta(seconds=creds["expires_in"] - 300)  # Trừ 5p để đề phòng
     if datetime.now() < expires_at:
         return creds["access_token"]
@@ -785,8 +776,6 @@ async def check_platform_connection(user_id: int, platform: str) -> bool:
         return creds and "default_tasklist" in creds
     return False
 
-
-    
 def start_scheduler(loop):
     #loop = asyncio.get_event_loop() 
     scheduler = AsyncIOScheduler(event_loop=loop)

@@ -3,12 +3,12 @@ import requests
 from requests.auth import HTTPBasicAuth
 import os 
 from models.JiraTask import JiraTask
-from api.response_body import Code, response_body, Status
+from service.response_body import Code, response_body, Status
 
 from MongoDBConnection import MongoDBConnection
 
 from models.Task import Task
-from api.helpers import objectid_to_str
+from service.helpers import objectid_to_str
 from dotenv import load_dotenv
 
 jira_bp = Blueprint('jira', __name__, url_prefix='/jira')
