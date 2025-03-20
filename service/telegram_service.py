@@ -9,8 +9,8 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
-import logging
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
+# import logging
+# logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
 from telegram.ext import ConversationHandler, CallbackQueryHandler  
 from pymongo import MongoClient
 from dotenv import load_dotenv
