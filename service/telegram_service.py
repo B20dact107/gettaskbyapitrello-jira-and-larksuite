@@ -28,11 +28,8 @@ db= client["task_database"]
 tasks_collection = db ["unified_tasks"]
 user_credentials = db["user_credentials"]
 
-
-# Thêm phần định nghĩa state ở đầu file
 (AWAITING_TRELLO_CREDS, AWAITING_JIRA_CREDS,  AWAITING_LARK_CREDS, PLATFORM_SELECTED,AWAITING_TRELLO_BOARD_NAME,
-    AWAITING_TRELLO_LIST_NAME,
-    AWAITING_JIRA_PROJECT_KEY, AWAITING_LARK_TASKLIST_NAME) = range(5, 13)  
+AWAITING_TRELLO_LIST_NAME, AWAITING_JIRA_PROJECT_KEY, AWAITING_LARK_TASKLIST_NAME) = range(5, 13)  
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
@@ -148,12 +145,10 @@ async def show_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Vui lòng dùng /start trước!")
         return
     
-    tasks = tasks_collection.find({
-        "$or": [
+    tasks = tasks_collection.find({"$or": [
             {"members": user["username"]},
-            {"assignees": user["username"]}
-        ]
-    }, {"_id": 0})
+            {"assignees": user["username"]}]},
+            {"_id": 0})
     
     if not tasks:
         await update.message.reply_text("📭 Bạn không có task nào!")
@@ -167,6 +162,8 @@ async def show_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
 TITLE, DESCRIPTION, PRIORITY, ASSIGNEES, PLATFORM = range(5)
 
 async def create_issue(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message.text.lower() in ["/cancel", "hủy"]:
+        return await cancel(update, context)
     await update.message.reply_text("📝 Hãy nhập tiêu đề task:")
     return TITLE
 
@@ -195,7 +192,6 @@ async def get_platform(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['platform'] = update.message.text.strip().lower()
     
     try:
-        # Gọi hàm xử lý cuối cùng
         await finalize_task(update, context)
         return ConversationHandler.END
     except Exception as e:
@@ -204,7 +200,6 @@ async def get_platform(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def create_task_on_platform(platform: str, task_data: dict):
     if platform == "trello":
         try:
-            # Lấy thông tin xác thực từ database
             creds = user_credentials.find_one({
                 "user_id": task_data["user_id"],
                 "platform": "trello"
@@ -214,7 +209,6 @@ async def create_task_on_platform(platform: str, task_data: dict):
                 raise Exception("Chưa kết nối Trello! Vui lòng dùng lệnh /connect trước")
             member_ids = []
             for username in task_data.get("assignees", []):
-                # Gọi API để lấy thông tin thành viên
                 members_url = f"https://api.trello.com/1/boards/{creds['default_board']}/members"
                 params = {
                     'key': creds['api_key'],
@@ -228,9 +222,6 @@ async def create_task_on_platform(platform: str, task_data: dict):
                         if member['username'] == username:
                             member_ids.append(member['id'])
                             break
-
-                
-            # Chuẩn bị API endpoint và params
             url = "https://api.trello.com/1/cards"
             query = {
                 'key': creds["api_key"],
@@ -242,22 +233,17 @@ async def create_task_on_platform(platform: str, task_data: dict):
                 'idMembers': ",".join(member_ids) if member_ids else "",
                 'pos': 'top'
             }
-            # Gọi API Trello
             response = requests.post(
                 url,
                 params=query,
-                timeout=10
-            )
-            
+                timeout=10)
             if response.status_code != 200:
                 raise Exception(f"Lỗi Trello ({response.status_code}): {response.text}")
-                
             card_id = response.json()["id"]
             return card_id
             
         except Exception as e:
             raise Exception(f"Không thể tạo task trên Trello: {str(e)}")
-        
     
     if platform == "jira":
         try:
@@ -278,7 +264,6 @@ async def create_task_on_platform(platform: str, task_data: dict):
 
             adf_description = convert_text_to_adf(task_data.get("description", ""))
             account_id = creds["jira_account_id"]
-        
             payload = {
                 "fields": {
                     "project": {"key": creds["project_key"]},
@@ -287,16 +272,14 @@ async def create_task_on_platform(platform: str, task_data: dict):
                     "description": adf_description,
                     "assignee": {"accountId": account_id} if account_id else None
                     
-                }
-            }
+                }}
            
             response = requests.post(
                 url,
                 auth=HTTPBasicAuth(creds["jira_email"], creds["jira_api_token"]),
                 headers={"Accept": "application/json", "Content-Type": "application/json"},
                 json=payload,
-                timeout=10
-            )
+                timeout=10)
             
             if response.status_code == 201:
                 return response.json().get("id")
@@ -336,7 +319,7 @@ async def create_task_on_platform(platform: str, task_data: dict):
                 "description": task_data.get("description", ""),
                 "due": {
                     "timestamp": int((datetime.fromisoformat(task_data["due_date"])).timestamp() * 1000),
-                    "is_all_day": False  # Điều chỉnh nếu cần
+                    "is_all_day": False  
                 },
                 "tasklists": [
                     {"tasklist_guid": tasklist_guid}
@@ -345,16 +328,13 @@ async def create_task_on_platform(platform: str, task_data: dict):
             }
 
             response = requests.post(url, headers=headers, json=payload)
-
             if response.status_code != 200:
                 raise Exception(f"Lỗi Lark API: {response.text}")
 
             return response.json()["data"]["task"]["guid"]
-            
         except Exception as e:
             raise Exception(f"Lỗi tạo task trên Lark: {str(e)}")
 
-        
 async def finalize_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         # Lấy thông tin từ context
@@ -370,7 +350,6 @@ async def finalize_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 {"$set": {"username": current_username}}
             )
         
-        # Chuẩn bị dữ liệu task
         task_data = {
             "user_id": user["user_id"],
             "title": context.user_data.get("title", ""),
@@ -393,7 +372,6 @@ async def finalize_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
             }
         }
         tasks_collection.insert_one(task_record)
-        
         await update.message.reply_text(f"✅ Đã tạo task trên {platform}!")
     
     except Exception as e:
@@ -750,7 +728,6 @@ async def process_ai_task(update: Update, context: ContextTypes.DEFAULT_TYPE, ta
         
         platform_id = await create_task_on_platform(final_task["platform"], final_task)
         tasks_collection.insert_one(final_task)
-        
         await update.message.reply_text(f"✅ Đã tạo task {final_task['title']} trên {final_task['platform']}!")
 
     except Exception as e:
@@ -777,7 +754,6 @@ async def check_platform_connection(user_id: int, platform: str) -> bool:
     return False
 
 def start_scheduler(loop):
-    #loop = asyncio.get_event_loop() 
     scheduler = AsyncIOScheduler(event_loop=loop)
     scheduler.add_job(check_deadlines, CronTrigger(hour=9, minute=0))  # Chạy hàng ngày lúc 9h
     scheduler.start()

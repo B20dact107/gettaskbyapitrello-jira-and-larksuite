@@ -50,7 +50,12 @@ def run_bot():
             ASSIGNEES:    [MessageHandler(filters.TEXT & ~filters.COMMAND, get_assignees)],
             PLATFORM:     [MessageHandler(filters.TEXT & ~filters.COMMAND, get_platform)]
         },
-        fallbacks=[]
+        fallbacks=[CommandHandler("cancel", cancel)],
+        conversation_timeout=300,
+        per_message=False,
+        map_to_parent={
+            ConversationHandler.TIMEOUT: ConversationHandler.END
+    },
         
     )
     conv_auth = ConversationHandler(
@@ -64,7 +69,12 @@ def run_bot():
         AWAITING_LARK_CREDS:       [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_lark_authorization_code)],
         AWAITING_LARK_TASKLIST_NAME: [MessageHandler(filters.TEXT, handle_lark_tasklist_name)],
     },
-    fallbacks=[CommandHandler('cancel', cancel)]
+    fallbacks=[CommandHandler('cancel', cancel)],
+    conversation_timeout=300,
+        per_message=False,
+        map_to_parent={
+            ConversationHandler.TIMEOUT: ConversationHandler.END
+        },
     )
 
     application.add_handler(CommandHandler("start", start))
@@ -75,7 +85,8 @@ def run_bot():
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     start_scheduler(loop)
     
-
+    #try:
+        # Chạy bot với event loop riêng
     application.run_polling()
     #finally:
     #    loop.close()
